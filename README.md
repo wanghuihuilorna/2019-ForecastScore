@@ -50,7 +50,7 @@ exam_score_s1.csv（初赛） 和 exam_score.csv（复赛） 得分信息
 字段1	student_id	    integer	    脱敏后的学生独立标识	    230748
 字段2	course	        string	    脱敏后课程名称，如物理	    course1
 字段3	exam_id	        string	    脱敏后考试独立标识	        FJxoUDCI
-字段4	score	        integer	    考试总分	                73
+字段4	score	          integer	    考试总分	                73
 
 
 
@@ -61,4 +61,4 @@ submission_s1.csv（初赛） 和 submission_s2.csv （复赛）
 字段1	student_id	    integer	    脱敏后的学生独立标识	    230748
 字段2	course	        string	    脱敏后课程名称，如物理	    course1
 字段3	exam_id	        string	    脱敏后考试独立标识	        m31I6cTD
-字段4	pred	        float	    考试总分预测
+字段4	pred	          float	    考试总分预测
