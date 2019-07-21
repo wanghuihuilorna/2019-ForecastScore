@@ -1,5 +1,3 @@
-import numpy as np
-from sklearn import preprocessing
 from demo.load_data import load_data
 
 
@@ -10,20 +8,6 @@ class preprocess(object):
 
     def __init__(self):
         self.load_data = load_data()
-
-    def one_hot_coding(self, raw_vector):
-        """
-        one-hot编码
-        :param raw_vector: 行向量
-        :return:
-        """
-        # 列向量
-        column_vector = raw_vector.reshape(len(raw_vector), -1)
-
-        # one_hot 编码函数
-        result = preprocessing.OneHotEncoder(categories='auto').fit_transform(column_vector).toarray()
-
-        return result
 
     def get_trian_s1_student(self):
         """
@@ -48,6 +32,8 @@ class preprocess(object):
         course_class = self.one_hot_coding(course[:, 1][1:]).tolist()
 
         return dict(zip(course_id, course_class))
+
+
 
 
 # if __name__ == '__main__':
