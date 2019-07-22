@@ -26,6 +26,14 @@ class load_data(object):
         # sample
         self.sample = configuration.configuration().config_parameters("sample")
 
+    def get_project_path(self):
+        """
+        返回项目路径
+        :return:
+        """
+        return self.ForecastScore_path
+
+
     def get_train_s1(self, file_name, tag):
         """
         返回train_s1文件夹下的文件
