@@ -272,26 +272,26 @@ if __name__ == '__main__':
 
 
 ####################################################lgb#################################################################
-    # reuslt = []
-    # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
-    #     submission_s1 = get_submission_s1('submission_s1', [i])
-    #
-    #     del submission_s1['pred']
-    #
-    #     exam_score = get_exam_score('exam_score', [i])
-    #
-    #     train_y = exam_score['score']
-    #
-    #     del exam_score['score']
-    #
-    #     predictions = lgb_model(model_name='lgb_model_' + i + '.pkl', train_X=exam_score, train_y=train_y,
-    #                             test_X=submission_s1, test_y=None)
-    #
-    #     reuslt.extend(predictions.tolist())
-    #
-    # submit = load_data().get_test_s1('submission_s1', 'pd')
-    # submit['pred'] = reuslt
-    # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_lgb.csv', index=None, encoding='utf-8')
+    reuslt = []
+    for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
+        submission_s1 = get_submission_s1('submission_s1', [i])
+
+        del submission_s1['pred']
+
+        exam_score = get_exam_score('exam_score', [i])
+
+        train_y = exam_score['score']
+
+        del exam_score['score']
+
+        predictions = lgb_model(model_name='lgb_model_' + i + '.pkl', train_X=exam_score, train_y=train_y,
+                                test_X=submission_s1, test_y=None)
+
+        reuslt.extend(predictions.tolist())
+
+    submit = load_data().get_test_s1('submission_s1', 'pd')
+    submit['pred'] = reuslt
+    submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_lgb.csv', index=None, encoding='utf-8')
 ####################################################svm#################################################################
     reuslt = []
     for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
