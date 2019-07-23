@@ -5,6 +5,7 @@ import pandas as pd
 from util.load_data import load_data
 from util import util
 from sklearn.svm import SVC
+from sklearn import preprocessing
 
 
 def get_course(filename, tag='pd'):
@@ -38,7 +39,7 @@ def get_all_knowledge(filename, tag='pd'):
     """
     df = load_data().get_train_s1(filename, tag)
 
-    for feature in ['knowledge_point', 'section', 'category']:
+    for feature in ['section', 'category']:
         df[feature] = [x.split(':')[-1] for x in df[feature]]
 
     return df
@@ -64,11 +65,7 @@ def lgb_model(model_name, train_X, train_y, test_X, test_y=None):
     :param test_y:
     :return:
     """
-
-    # train_X = ss.csc_matrix(train_X.values)
-    # test_X = ss.csc_matrix(test_X.values)
-
-    gbm = lgb.LGBMRegressor(max_depth=5, n_estimators=1000, learning_rate=0.01).fit(train_X, train_y)
+    gbm = lgb.LGBMRegressor(max_depth=5, n_estimators=500, learning_rate=0.01).fit(train_X, train_y)
 
     model_path = load_data().get_project_path() + '/model/' + model_name
     util.save_model(gbm, model_path=model_path)
@@ -117,6 +114,41 @@ def svm_model(model_name, train_X, train_y, test_X, test_y=None):
         return predictions
 
 
+def merge_all_knowledge(df, course_type=None):
+    """
+    合并all_knowledge数据
+    :param df:
+    :param course_type:
+    :return:
+    """
+    course_exam = get_course_exams(course_type)
+    del course_exam['exam_id']
+
+    to_calculate_columns = df[course_exam.columns.to_list()]
+
+    all_knowledge = get_all_knowledge('all_knowledge')
+    all_knowledge = all_knowledge[all_knowledge.course == course_type.split('_')[0]]
+
+    to_calculate_columns[to_calculate_columns.select_dtypes(include=['number']).columns] /= 100
+
+    all_knowledge = all_knowledge[all_knowledge.course == course_type.split('_')[0]]
+
+    section = np.mat(all_knowledge.section).astype("float")
+    category = np.mat(all_knowledge.category).astype("float")
+    complexity = np.mat(all_knowledge.complexity).astype("float")
+    to_calculate_columns = np.mat(to_calculate_columns.values).astype("float")
+
+    section = np.dot(to_calculate_columns, section.T)
+    category = np.dot(to_calculate_columns, category.T)
+    complexity = np.dot(to_calculate_columns, complexity.T)
+
+    df['section'] = section.reshape(1, -1).tolist()[0]
+    df['category'] = category.reshape(1, -1).tolist()[0]
+    df['complexity'] = complexity.reshape(1, -1).tolist()[0]
+
+    return df
+
+
 def get_exam_score(filename, course_id: list, tag='pd'):
     """
     处理exam_score.csv
@@ -145,6 +177,8 @@ def get_exam_score(filename, course_id: list, tag='pd'):
             course_exams = get_course_exams(course_i)
             # 合并
             exam_score = pd.merge(exam_score, course_exams, how='left', on='exam_id')
+            # 合并
+            exam_score = merge_all_knowledge(exam_score, course_i)
 
         # 处理标签特征
         exam_score.index = list(exam_score['student_id'])
@@ -188,6 +222,7 @@ def get_submission_s1(filename, course_id: list, tag='pd'):
             course_exams = get_course_exams(course_i)
             # 合并
             submission_s1 = pd.merge(submission_s1, course_exams, how='left', on='exam_id')
+            submission_s1 = merge_all_knowledge(submission_s1, course_i)
 
         # 处理标签特征
         submission_s1.index = list(submission_s1['student_id'])
@@ -234,6 +269,14 @@ if __name__ == '__main__':
     # # train_X = util.min_max_scaler(train_X)
     # # test_X = util.min_max_scaler(test_X)
     #
+    # # print(train_X.shape)
+    # # print([x for x in train_X.columns if (train_X[x].values != 0).any()])
+    # # train_X = train_X([x for x in train_X.columns if (train_X[x].values != 0).any()])
+    # # print(train_X.shape)
+    # # print(test_X.shape)
+    # # test_X = test_X([x for x in test_X.columns if (test_X[x].values != 0).any()])
+    # # print(test_X.shape)
+    #
     # rmse, predictions = lgb_model('lgb_model_1.pkl', train_X, train_y, test_X, test_y)
     # print(rmse)
     # print(predictions)
@@ -272,26 +315,26 @@ if __name__ == '__main__':
 
 
 ####################################################lgb#################################################################
-    reuslt = []
-    for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
-        submission_s1 = get_submission_s1('submission_s1', [i])
-
-        del submission_s1['pred']
-
-        exam_score = get_exam_score('exam_score', [i])
-
-        train_y = exam_score['score']
-
-        del exam_score['score']
-
-        predictions = lgb_model(model_name='lgb_model_' + i + '.pkl', train_X=exam_score, train_y=train_y,
-                                test_X=submission_s1, test_y=None)
-
-        reuslt.extend(predictions.tolist())
-
-    submit = load_data().get_test_s1('submission_s1', 'pd')
-    submit['pred'] = reuslt
-    submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_lgb.csv', index=None, encoding='utf-8')
+    # reuslt = []
+    # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
+    #     submission_s1 = get_submission_s1('submission_s1', [i])
+    #
+    #     del submission_s1['pred']
+    #
+    #     exam_score = get_exam_score('exam_score', [i])
+    #
+    #     train_y = exam_score['score']
+    #
+    #     del exam_score['score']
+    #
+    #     predictions = lgb_model(model_name='lgb_model_' + i + '.pkl', train_X=exam_score, train_y=train_y,
+    #                             test_X=submission_s1, test_y=None)
+    #
+    #     reuslt.extend(predictions.tolist())
+    #
+    # submit = load_data().get_test_s1('submission_s1', 'pd')
+    # submit['pred'] = reuslt
+    # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_lgb.csv', index=None, encoding='utf-8')
 ####################################################svm#################################################################
     reuslt = []
     for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
