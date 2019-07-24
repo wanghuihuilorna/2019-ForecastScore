@@ -5,7 +5,7 @@ import pandas as pd
 from util.load_data import load_data
 from util import tool
 from sklearn.svm import SVC
-from sklearn import preprocessing
+import time
 import xgboost as xgb
 
 
@@ -55,6 +55,7 @@ def get_course_exams(filename, tag='pd'):
     df = load_data().get_train_s1(filename, tag)
 
     return df
+
 
 def xgb_model(model_name, train_X, train_y, test_X, test_y=None):
     """
@@ -264,6 +265,7 @@ def get_submission_s1(filename, course_id: list, tag='pd'):
 
 
 if __name__ == '__main__':
+    start = time.clock()
     # # 判断是否存在缺失值
     # test_s1_file_name = ['submission_s1']
     # train_s1_file_name = ['all_knowledge', 'course', 'course1_exams', 'course2_exams', 'course3_exams', 'course4_exams'
@@ -383,26 +385,26 @@ if __name__ == '__main__':
 
 
 ####################################################xgb#################################################################
-    reuslt = []
-    for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
-        submission_s1 = get_submission_s1('submission_s1', [i])
-
-        del submission_s1['pred']
-
-        exam_score = get_exam_score('exam_score', [i])
-
-        train_y = exam_score['score']
-
-        del exam_score['score']
-
-        predictions = xgb_model(model_name='xgb_model_' + i + '.pkl', train_X=exam_score, train_y=train_y,
-                                test_X=submission_s1, test_y=None)
-
-        reuslt.extend(predictions.tolist())
-
-    submit = load_data().get_test_s1('submission_s1', 'pd')
-    submit['pred'] = reuslt
-    submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_xgb.csv', index=None, encoding='utf-8')
+    # reuslt = []
+    # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
+    #     submission_s1 = get_submission_s1('submission_s1', [i])
+    #
+    #     del submission_s1['pred']
+    #
+    #     exam_score = get_exam_score('exam_score', [i])
+    #
+    #     train_y = exam_score['score']
+    #
+    #     del exam_score['score']
+    #
+    #     predictions = xgb_model(model_name='xgb_model_' + i + '.pkl', train_X=exam_score, train_y=train_y,
+    #                             test_X=submission_s1, test_y=None)
+    #
+    #     reuslt.extend(predictions.tolist())
+    #
+    # submit = load_data().get_test_s1('submission_s1', 'pd')
+    # submit['pred'] = reuslt
+    # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_xgb.csv', index=None, encoding='utf-8')
 ####################################################lgb#################################################################
     # reuslt = []
     # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
@@ -447,3 +449,38 @@ if __name__ == '__main__':
     # submit['pred'] = reuslt
     # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_svm.csv', index=None, encoding='utf-8')
 
+####################################################mean-median#################################################################
+    # reuslt = []
+    # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
+    #     print(i)
+    #     train_X = get_exam_score('exam_score', [i])
+    #     test_X = get_submission_s1('submission_s1', [i])
+    #     del test_X['pred']
+    #
+    #     mean_value = tool.get_mean_value(train_X)
+    #     median_value = tool.get_median_value(train_X)
+    #     # mode_value = tool.get_mode_value(train_X)
+    #     # max_value = tool.get_Maximum_value(train_X)
+    #     # min_value = tool.get_Minimum_value(train_X)
+    #
+    #     mean_median_value = (mean_value + median_value) / 2
+    #
+    #     mean_median_value = mean_median_value.to_frame()
+    #     predictions = pd.merge(test_X, mean_median_value, how='left', on='student_id')[0]
+    #
+    #     reuslt.extend(predictions.tolist())
+    #
+    # submit = load_data().get_test_s1('submission_s1', 'pd')
+    # submit['pred'] = reuslt
+    # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median.csv', index=None,
+    #               encoding='utf-8')
+    #
+    # print(time.clock() - start)
+
+    ####################################################mean-median-xgb#################################################################
+    data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
+    data2 = load_data().get_test_s1('submission_s1_sample_mean_median', 'pd')
+
+    data1['pred'] = (data1['pred'] + data2['pred'])/2
+    data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median_xgb.csv', index=None,
+                  encoding='utf-8')

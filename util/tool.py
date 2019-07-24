@@ -89,8 +89,63 @@ def load_model(model_path):
 
 
 def get_mean_value(df, **params):
-    pass
+    """
+    获取每个学生成绩的平均值
+    :param df:
+    :param params:
+    :return:
+    """
+    mean = df.groupby('student_id').apply(lambda x: x['score'].mean())
 
+    return mean
+
+
+def get_median_value(df, **params):
+    """
+    获取每个学生成绩的中位数
+    :param df:
+    :param params:
+    :return:
+    """
+    median = df.groupby('student_id').apply(lambda x: x['score'].median())
+
+    return median
+
+
+def get_mode_value(df, **params):
+    """
+    获取每个学生成绩的众数
+    :param df:
+    :param params:
+    :return:
+    """
+    mode = df.groupby('student_id').apply(lambda x: x['score'].mode().max())
+
+    return mode
+
+
+def get_Maximum_value(df, **params):
+    """
+    获取每个学生成绩的最大值
+    :param df:
+    :param params:
+    :return:
+    """
+    max = df.groupby('student_id').apply(lambda x: x['score'].max())
+
+    return max
+
+
+def get_Minimum_value(df, **params):
+    """
+    获取每个学生成绩的最小值
+    :param df:
+    :param params:
+    :return:
+    """
+    min = df.groupby('student_id').apply(lambda x: x['score'].min())
+
+    return min
 
 # if __name__ == "__main__":
 #     tmp = preprocess.get_exam_score('exam_score', ['1'])
