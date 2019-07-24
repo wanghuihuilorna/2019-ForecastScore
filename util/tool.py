@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pickle
+from demo import preprocess
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
@@ -85,3 +86,15 @@ def load_model(model_path):
         model = pickle.load(file)
 
     return model
+
+
+def get_mean_value(df, **params):
+    pass
+
+
+# if __name__ == "__main__":
+#     tmp = preprocess.get_exam_score('exam_score', ['1'])
+#     train_X = tmp[tmp.exam_id.isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])]
+#     mean_value = train_X.groupby('advert_id').apply(lambda x: x[['advert_showed']].cumsum())
+#
+#     print(train_X.head())
