@@ -95,7 +95,18 @@ def get_mean_value(df, **params):
     :param params:
     :return:
     """
-    mean = df.groupby('student_id').apply(lambda x: x['score'].mean())
+    # mean = df.groupby('student_id').apply(lambda x: x['score'].mean())
+
+    mean = df.groupby('student_id').apply(lambda x: list(x['score']))
+
+    result = []
+    for i in mean.values:
+        i.remove(max(i))
+        i.remove(min(i))
+        result.append(np.array(i).mean())
+
+    mean = pd.Series(result, index=mean.index)
+    mean['0'] = result
 
     return mean
 

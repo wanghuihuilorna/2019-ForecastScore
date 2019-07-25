@@ -478,9 +478,18 @@ if __name__ == '__main__':
     # print(time.clock() - start)
 
     ####################################################mean-median-xgb#################################################################
-    data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
-    data2 = load_data().get_test_s1('submission_s1_sample_mean_median', 'pd')
+    # data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
+    # data2 = load_data().get_test_s1('submission_s1_sample_mean_median', 'pd')
+    #
+    # data1['pred'] = (data1['pred'] + data2['pred'])/2
+    # data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median_xgb.csv', index=None,
+    #               encoding='utf-8')
 
-    data1['pred'] = (data1['pred'] + data2['pred'])/2
+
+    ####################################################mean-median-xgb#################################################################
+    data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
+    data2 = load_data().get_test_s1('submission_s1_sample_mean_median1', 'pd')
+
+    data1['pred'] = data1['pred']*0.5 + data2['pred']*0.5
     data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median_xgb.csv', index=None,
                   encoding='utf-8')
