@@ -215,7 +215,21 @@ def get_exam_score(filename, course_id: list, tag='pd'):
         # del exam_score['student_id']
         exam_score = tool.label_encoding(exam_score, ['course', 'exam_id'])
 
-        return exam_score
+        # 取均值
+        mean_value = tool.get_mean_value(exam_score)
+
+        # 使用均值来填充空值
+        result = pd.DataFrame()
+        for tmp in exam_score.groupby('student_id'):
+            tmp[1]['score'].replace(0, mean_value[tmp[0]], inplace=True)
+            if result is None:
+                result = tmp[1]
+            else:
+                result = pd.concat([result, tmp[1]], axis=0)
+
+        result.reset_index(drop=True, inplace=True)
+
+        return result
     else:
         return exam_score
 
@@ -272,7 +286,7 @@ if __name__ == '__main__':
     #     , 'course5_exams', 'course6_exams', 'course7_exams', 'course8_exams', 'exam_score', 'student']
     # sample_s1_file_name = ['submission_s1_sample']
     #
-    # ####################################################xgb测试#################################################################
+#########################################################xgb测试#################################################################
     # course = get_course('course')
     #
     # student = get_student('student')
@@ -311,7 +325,7 @@ if __name__ == '__main__':
     # rmse, predictions = xgb_model('xgb_model_1.pkl', train_X, train_y, test_X, test_y)
     # print(rmse)
     # print(predictions)
-    # ####################################################lgb测试#################################################################
+#############################################################lgb测试#################################################################
     # course = get_course('course')
     #
     # student = get_student('student')
@@ -474,22 +488,13 @@ if __name__ == '__main__':
     # submit['pred'] = reuslt
     # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median.csv', index=None,
     #               encoding='utf-8')
-    #
-    # print(time.clock() - start)
 
-    ####################################################mean-median-xgb#################################################################
-    # data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
-    # data2 = load_data().get_test_s1('submission_s1_sample_mean_median', 'pd')
-    #
-    # data1['pred'] = (data1['pred'] + data2['pred'])/2
-    # data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median_xgb.csv', index=None,
-    #               encoding='utf-8')
-
-
-    ####################################################mean-median-xgb#################################################################
+########################################################mean-median-xgb#################################################################
     data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
-    data2 = load_data().get_test_s1('submission_s1_sample_mean_median1', 'pd')
+    data2 = load_data().get_test_s1('submission_s1_sample_mean_median', 'pd')
 
-    data1['pred'] = data1['pred']*0.5 + data2['pred']*0.5
+    data1['pred'] = (data1['pred'] + data2['pred'])/2
     data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median_xgb.csv', index=None,
                   encoding='utf-8')
+
+    print(time.clock() - start)
