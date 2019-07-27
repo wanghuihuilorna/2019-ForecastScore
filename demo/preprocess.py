@@ -1,4 +1,5 @@
 import scipy.sparse as ss
+import os
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
@@ -179,47 +180,50 @@ def merge_all_knowledge(df, course_type=None):
     return df
 
 
-def get_exam_score(filename, course_id: list, tag='pd'):
+def get_exam_score(filename, course_id: str, tag='pd', save=True):
     """
-    处理exam_score.csv
+    处理exam_score.csv  course_id 只要一个值
     :param filename:
     :return:
     """
-    exam_score = load_data().get_train_s1(filename, tag)
+    # .h5文件保存路径
+    save_path = load_data().get_project_path() + '/data/cache/%s_%s.h5' % (filename, course_id)
 
-    student = get_student('student')
-    course = get_course('course')
+    if os.path.exists(save_path):
+        exam_score = tool.reduce_mem_usage(pd.read_hdf(path_or_buf=save_path, mode='r', key=course_id))
+    else:
+        exam_score = load_data().get_train_s1(filename, tag)
 
-    # 合并性别
-    exam_score = pd.merge(exam_score, student, how='left', on='student_id')
-    # 合并course_class
-    exam_score = pd.merge(exam_score, course, how='left', on='course')
+        student = get_student('student')
+        course = get_course('course')
 
-    if len(course_id) != 0:
-        course_list = ['course' + i for i in course_id]
+        # 合并性别
+        exam_score = pd.merge(exam_score, student, how='left', on='student_id')
+        # 合并course_class
+        exam_score = pd.merge(exam_score, course, how='left', on='course')
+
         # 获取选中的course_id
-        exam_score = exam_score[exam_score['course'].isin(course_list)]
-        # 使用knowledge_point 替换 exam_id
-        course_list = [i + '_exams' for i in course_list]
+        exam_score = exam_score[exam_score['course'] == course_id]
 
-        for course_i in course_list:
-            # 读取特定的course_exams.csv文件
-            course_exams = get_course_exams(course_i)
-            # 合并
-            exam_score = pd.merge(exam_score, course_exams, how='left', on='exam_id')
-            # 合并
-            exam_score = merge_all_knowledge(exam_score, course_i)
+        # 读取特定的course_exams.csv文件
+        course_exams = get_course_exams(course_id + '_exams')
+        # 合并course_exams
+        exam_score = pd.merge(exam_score, course_exams, how='left', on='exam_id')
+        # 合并section/category/complexity
+        exam_score = merge_all_knowledge(exam_score, course_id + '_exams')
 
-        # 处理标签特征
-        # exam_score.index = list(exam_score['student_id'])
-        # del exam_score['student_id']
-        exam_score = tool.label_encoding(exam_score, ['course', 'exam_id'])
+        # 处理标签数据
+        exam_score = tool.label_encoding(exam_score, ['course'])
+
+        # 处理exam_id
+        exam_score['exam_id'] = exam_score['exam_id'].map(
+            lambda x: dict(zip(course_exams['exam_id'], [i for i in range(len(course_exams['exam_id']))]))[x])
 
         # 取均值
         mean_value = tool.get_mean_value(exam_score)
 
         # 使用均值来填充空值
-        result = pd.DataFrame()
+        result = None
         for tmp in exam_score.groupby('student_id'):
             tmp[1]['score'].replace(0, mean_value[tmp[0]], inplace=True)
             if result is None:
@@ -229,9 +233,13 @@ def get_exam_score(filename, course_id: list, tag='pd'):
 
         result.reset_index(drop=True, inplace=True)
 
-        return result
-    else:
-        return exam_score
+        exam_score = result
+
+        # 保存数据
+        if save is True:
+            exam_score.to_hdf(path_or_buf=save_path, key=course_id)
+
+    return exam_score
 
 
 def get_submission_s1(filename, course_id: list, tag='pd'):
@@ -286,140 +294,121 @@ if __name__ == '__main__':
     #     , 'course5_exams', 'course6_exams', 'course7_exams', 'course8_exams', 'exam_score', 'student']
     # sample_s1_file_name = ['submission_s1_sample']
     #
-#########################################################xgb测试#################################################################
+    #########################################################xgb测试#################################################################
+    # # 获取course
     # course = get_course('course')
-    #
+    # # 获取student
     # student = get_student('student')
-    #
+    # # 获取all_knowledge
     # all_knowledge = get_all_knowledge('all_knowledge')
     #
-    # tmp = []
-    # for file_name in ['course1_exams', 'course2_exams', 'course3_exams', 'course4_exams'
-    #     , 'course5_exams', 'course6_exams', 'course7_exams', 'course8_exams']:
-    #     tmp.extend(get_course_exams(file_name))
+    # for course_id in ['course1', 'course2', 'course3', 'course4', 'course5', 'course6', 'course7', 'course8']:
+    #     # 获取exam_score
+    #     exam_score = get_exam_score('exam_score', course_id)
+    #     # 获取exam_id
+    #     exam_id = list(set(exam_score.exam_id))
+    #     # 对exam_id进行排序
+    #     exam_id.sort()
+    #     # 获取训练集
+    #     train_X = exam_score[exam_score.exam_id.isin(exam_id[:int(len(exam_id) - 2)])]
+    #     # 获取测试集
+    #     test_X = exam_score[exam_score.exam_id.isin(exam_id[int(len(exam_id) - 2):])]
     #
-    # tmp = get_exam_score('exam_score', ['1'])
-    # train_X = tmp[tmp.exam_id.isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])]
-    # test_X = tmp[tmp.exam_id.isin([16, 17])]
+    #     # 得分
+    #     train_y = train_X.score
+    #     # 得分
+    #     test_y = test_X.score
     #
-    # train_y = train_X.score
-    # test_y = test_X.score
+    #     del train_X['score']
+    #     del test_X['score']
     #
-    # del train_X['score']
-    # del test_X['score']
-    #
-    # # del train_X['exam_id']
-    # # del test_X['exam_id']
-    #
-    # # train_X = tool.min_max_scaler(train_X)
-    # # test_X = tool.min_max_scaler(test_X)
-    #
-    # # print(train_X.shape)
-    # # print([x for x in train_X.columns if (train_X[x].values != 0).any()])
-    # # train_X = train_X([x for x in train_X.columns if (train_X[x].values != 0).any()])
-    # # print(train_X.shape)
-    # # print(test_X.shape)
-    # # test_X = test_X([x for x in test_X.columns if (test_X[x].values != 0).any()])
-    # # print(test_X.shape)
-    #
-    # rmse, predictions = xgb_model('xgb_model_1.pkl', train_X, train_y, test_X, test_y)
-    # print(rmse)
-    # print(predictions)
-#############################################################lgb测试#################################################################
-    # course = get_course('course')
-    #
-    # student = get_student('student')
-    #
-    # all_knowledge = get_all_knowledge('all_knowledge')
-    #
-    # tmp = []
-    # for file_name in ['course1_exams', 'course2_exams', 'course3_exams', 'course4_exams'
-    #     , 'course5_exams', 'course6_exams', 'course7_exams', 'course8_exams']:
-    #     tmp.extend(get_course_exams(file_name))
-    #
-    # tmp = get_exam_score('exam_score', ['1'])
-    # train_X = tmp[tmp.exam_id.isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])]
-    # test_X = tmp[tmp.exam_id.isin([16, 17])]
-    #
-    # train_y = train_X.score
-    # test_y = test_X.score
-    #
-    # del train_X['score']
-    # del test_X['score']
-    #
-    # # del train_X['exam_id']
-    # # del test_X['exam_id']
-    #
-    # # train_X = tool.min_max_scaler(train_X)
-    # # test_X = tool.min_max_scaler(test_X)
-    #
-    # # print(train_X.shape)
-    # # print([x for x in train_X.columns if (train_X[x].values != 0).any()])
-    # # train_X = train_X([x for x in train_X.columns if (train_X[x].values != 0).any()])
-    # # print(train_X.shape)
-    # # print(test_X.shape)
-    # # test_X = test_X([x for x in test_X.columns if (test_X[x].values != 0).any()])
-    # # print(test_X.shape)
-    #
-    # rmse, predictions = lgb_model('lgb_model_1.pkl', train_X, train_y, test_X, test_y)
-    # print(rmse)
-    # print(predictions)
-####################################################svm测试#################################################################
-    # course = get_course('course')
-    #
-    # student = get_student('student')
-    #
-    # all_knowledge = get_all_knowledge('all_knowledge')
-    #
-    # tmp = []
-    # for file_name in ['course1_exams', 'course2_exams', 'course3_exams', 'course4_exams'
-    #     , 'course5_exams', 'course6_exams', 'course7_exams', 'course8_exams']:
-    #     tmp.extend(get_course_exams(file_name))
-    #
-    # tmp = get_exam_score('exam_score', ['1'])
-    # train_X = tmp[tmp.exam_id.isin([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])]
-    # test_X = tmp[tmp.exam_id.isin([16, 17])]
-    #
-    # train_y = train_X.score
-    # test_y = test_X.score
-    #
-    # del train_X['score']
-    # del test_X['score']
-    #
-    # del train_X['exam_id']
-    # del test_X['exam_id']
-    #
-    # # train_X = util.min_max_scaler(train_X)
-    # # test_X = util.min_max_scaler(test_X)
-    #
-    # rmse, predictions = svm_model('svm_model_1.pkl', train_X, train_y, test_X, test_y)
-    # print(rmse)
-    # print(predictions)
-####################################################测试#################################################################
+    #     rmse, predictions = xgb_model('xgb_model_1.pkl', train_X, train_y, test_X, test_y)
+    #     print(rmse)
 
+    #############################################################lgb测试#################################################################
+    # # 获取course
+    # course = get_course('course')
+    # # 获取student
+    # student = get_student('student')
+    # # 获取all_knowledge
+    # all_knowledge = get_all_knowledge('all_knowledge')
+    #
+    # for course_id in ['course1', 'course2', 'course3', 'course4', 'course5', 'course6', 'course7', 'course8']:
+    #     # 获取exam_score
+    #     exam_score = get_exam_score('exam_score', course_id)
+    #     # 获取exam_id
+    #     exam_id = list(set(exam_score.exam_id))
+    #     # 对exam_id进行排序
+    #     exam_id.sort()
+    #     # 获取训练集
+    #     train_X = exam_score[exam_score.exam_id.isin(exam_id[:int(len(exam_id) - 2)])]
+    #     # 获取测试集
+    #     test_X = exam_score[exam_score.exam_id.isin(exam_id[int(len(exam_id) - 2):])]
+    #
+    #     # 得分
+    #     train_y = train_X.score
+    #     # 得分
+    #     test_y = test_X.score
+    #
+    #     del train_X['score']
+    #     del test_X['score']
+    #
+    #     rmse, predictions = lgb_model('lgb_model_1.pkl', train_X, train_y, test_X, test_y)
+    #     print(rmse)
+    ####################################################svm测试#################################################################
+    # # 获取course
+    # course = get_course('course')
+    # # 获取student
+    # student = get_student('student')
+    # # 获取all_knowledge
+    # all_knowledge = get_all_knowledge('all_knowledge')
+    #
+    # for course_id in ['course1', 'course2', 'course3', 'course4', 'course5', 'course6', 'course7', 'course8']:
+    #     # 获取exam_score
+    #     exam_score = get_exam_score('exam_score', course_id)
+    #     # 获取exam_id
+    #     exam_id = list(set(exam_score.exam_id))
+    #     # 对exam_id进行排序
+    #     exam_id.sort()
+    #     # 获取训练集
+    #     train_X = exam_score[exam_score.exam_id.isin(exam_id[:int(len(exam_id) - 2)])]
+    #     # 获取测试集
+    #     test_X = exam_score[exam_score.exam_id.isin(exam_id[int(len(exam_id) - 2):])]
+    #
+    #     # 得分
+    #     train_y = train_X.score
+    #     # 得分
+    #     test_y = test_X.score
+    #
+    #     del train_X['score']
+    #     del test_X['score']
+    #
+    #     rmse, predictions = svm_model('svm_model_1.pkl', train_X.astype('float'), train_y.astype('float'), test_X.astype('float'), test_y.astype('float'))
+    #     print(rmse)
+    ####################################################测试#################################################################
 
-####################################################xgb#################################################################
-    # reuslt = []
-    # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
-    #     submission_s1 = get_submission_s1('submission_s1', [i])
-    #
-    #     del submission_s1['pred']
-    #
-    #     exam_score = get_exam_score('exam_score', [i])
-    #
-    #     train_y = exam_score['score']
-    #
-    #     del exam_score['score']
-    #
-    #     predictions = xgb_model(model_name='xgb_model_' + i + '.pkl', train_X=exam_score, train_y=train_y,
-    #                             test_X=submission_s1, test_y=None)
-    #
-    #     reuslt.extend(predictions.tolist())
-    #
-    # submit = load_data().get_test_s1('submission_s1', 'pd')
-    # submit['pred'] = reuslt
-    # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_xgb.csv', index=None, encoding='utf-8')
-####################################################lgb#################################################################
+    ####################################################xgb#################################################################
+    reuslt = []
+    for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
+        submission_s1 = get_submission_s1('submission_s1', [i])
+
+        del submission_s1['pred']
+
+        exam_score = get_exam_score('exam_score', 'course' + i)
+
+        train_y = exam_score['score']
+
+        del exam_score['score']
+
+        predictions = xgb_model(model_name='xgb_model_' + i + '.pkl', train_X=exam_score, train_y=train_y,
+                                test_X=submission_s1, test_y=None)
+
+        reuslt.extend(predictions.tolist())
+
+    submit = load_data().get_test_s1('submission_s1', 'pd')
+    submit['pred'] = reuslt
+    submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_xgb.csv', index=None, encoding='utf-8')
+    ####################################################lgb#################################################################
     # reuslt = []
     # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
     #     submission_s1 = get_submission_s1('submission_s1', [i])
@@ -440,7 +429,7 @@ if __name__ == '__main__':
     # submit = load_data().get_test_s1('submission_s1', 'pd')
     # submit['pred'] = reuslt
     # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_lgb.csv', index=None, encoding='utf-8')
-####################################################svm#################################################################
+    ####################################################svm#################################################################
     # reuslt = []
     # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
     #     print(i)
@@ -463,7 +452,7 @@ if __name__ == '__main__':
     # submit['pred'] = reuslt
     # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_svm.csv', index=None, encoding='utf-8')
 
-####################################################mean-median#################################################################
+    ####################################################mean-median#################################################################
     # reuslt = []
     # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
     #     print(i)
@@ -489,12 +478,12 @@ if __name__ == '__main__':
     # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median.csv', index=None,
     #               encoding='utf-8')
 
-########################################################mean-median-xgb#################################################################
-    data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
-    data2 = load_data().get_test_s1('submission_s1_sample_mean_median', 'pd')
-
-    data1['pred'] = (data1['pred'] + data2['pred'])/2
-    data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median_xgb.csv', index=None,
-                  encoding='utf-8')
-
-    print(time.clock() - start)
+    ########################################################mean-median-xgb#################################################################
+    # data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
+    # data2 = load_data().get_test_s1('submission_s1_sample_mean_median', 'pd')
+    #
+    # data1['pred'] = (data1['pred'] + data2['pred']) / 2
+    # data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median_xgb.csv', index=None,
+    #              encoding='utf-8')
+    #
+    # print(time.clock() - start)
