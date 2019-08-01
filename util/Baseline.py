@@ -20,8 +20,9 @@ def create_feature(data):
     feats = []
     for i, row in tqdm(data.iterrows()):
         m = [int(i) for i in row['history_score'] if int(i) >= 50]
-        feats.append([np.mean(m), np.median(m), np.std(m), np.max(m), np.min(m),
-                      np.mean(m[-2:]), np.std(m[-2:])
+        # 平均数/中位数/标准差/最大值/最小值/众数/极差/变异系数/  最后两个值的均值/标准差 np.mean(m[-2:]), np.std(m[-2:])
+        feats.append([np.mean(m), np.median(m), np.std(m), np.max(m), np.min(m), pd.Series(data=m).mode().max(),
+                      np.ptp(m), np.std(m)/np.mean(m), np.mean(m[-2:]), np.std(m[-2:])
                       ])
 
     feats = pd.DataFrame(feats)
@@ -32,12 +33,12 @@ def create_feature(data):
 def xgb_model(new_train, y, new_test, lr, N):
     """定义模型"""
     xgb_params = {'booster': 'gbtree',
-                  'eta': lr, 'max_depth': 5, 'subsample': 0.8, 'colsample_bytree': 0.8,
+                  'eta': lr, 'max_depth': 10, 'subsample': 0.8, 'colsample_bytree': 0.8,
                   'objective': 'reg:linear', 'eval_metric': 'rmse',
                   'silent': True,
                   }
     # skf=StratifiedKFold(y,n_folds=5,shuffle=True,random_state=2018)
-    skf = KFold(n_splits=N, shuffle=True, random_state=42)
+    skf = KFold(n_splits=N, shuffle=True, random_state=2019)
     oof_xgb = np.zeros(new_train.shape[0])
     prediction_xgb = np.zeros(new_test.shape[0])
     for i, (tr, va) in enumerate(skf.split(new_train, y)):
@@ -45,7 +46,7 @@ def xgb_model(new_train, y, new_test, lr, N):
         dtrain = xgb.DMatrix(new_train[tr], y[tr])
         dvalid = xgb.DMatrix(new_train[va], y[va])
         watchlist = [(dtrain, 'train'), (dvalid, 'valid_data')]
-        bst = xgb.train(dtrain=dtrain, num_boost_round=30000, evals=watchlist, early_stopping_rounds=200,
+        bst = xgb.train(dtrain=dtrain, num_boost_round=30000, evals=watchlist, early_stopping_rounds=500,
                         verbose_eval=400, params=xgb_params)  # ,obj=custom_loss)
         oof_xgb[va] += bst.predict(xgb.DMatrix(new_train[va]), ntree_limit=bst.best_ntree_limit)
         prediction_xgb += bst.predict(xgb.DMatrix(new_test), ntree_limit=bst.best_ntree_limit)
@@ -98,11 +99,11 @@ traindata = pd.concat([traindata, create_feature(traindata)], axis=1)
 testdata_one = pd.concat([testdata_one, create_feature(testdata_one)], axis=1)
 
 ##########################
-prediction = pd.read_csv('../data/test_s1/submission_s1_sample_xgb.csv')
-prediction = prediction[prediction['exam_id'].isin(['m31I6cTD', 'syfj72xE', 'j8Tva0NC', 'GzBKCNR0', 'DUsu0zkH', 'YTjfkobL', 'u0Yz9rLJ', 'rxoYgBcR'])]
-del prediction['exam_id']
-traindata = pd.merge(traindata, prediction, how='left', on=['student_id', 'course'])
-testdata_one['pred'] = traindata['pred']
+# prediction = pd.read_csv('../data/test_s1/submission_s1_sample_xgb.csv')
+# prediction = prediction[prediction['exam_id'].isin(['m31I6cTD', 'syfj72xE', 'j8Tva0NC', 'GzBKCNR0', 'DUsu0zkH', 'YTjfkobL', 'u0Yz9rLJ', 'rxoYgBcR'])]
+# del prediction['exam_id']
+# traindata = pd.merge(traindata, prediction, how='left', on=['student_id', 'course'])
+# testdata_one['pred'] = traindata['pred']
 ##########################
 
 traindata = traindata.merge(student, how='left', on='student_id')
@@ -117,7 +118,6 @@ oof_xgb, prediction_xgb = \
               0.01, 5)
 testdata_one['score'] = prediction_xgb
 
-
 print('第二个测试集构造...')
 testdata_two = testdata_one[['student_id', 'course', 'score', 'history_score']].copy()  # 注意：加了pred
 testdata_two['history_score'] = testdata_two['history_score'].apply(lambda x: x[1:]) + \
@@ -127,16 +127,14 @@ print('第二个测试集构造完毕！')
 testdata_two = pd.concat([testdata_two, create_feature(testdata_two)], axis=1)
 testdata_two = testdata_two.merge(student, how='left', on='student_id')
 
-
 ##########################
-del traindata['pred']
-prediction = pd.read_csv('../data/test_s1/submission_s1_sample_xgb.csv')
-prediction = prediction[prediction['exam_id'].isin(['nsEwXu9k', 'Y1UQOByn', 'wzdFr0tP', 'S7V4hIkY', '3SJyhx2F', '3SG49MKN', '7lQGsPpC', 'Vdo50vyP'])]
-del prediction['exam_id']
-traindata = pd.merge(traindata, prediction, how='left', on=['student_id', 'course'])
-testdata_two['pred'] = traindata['pred']
+# del traindata['pred']
+# prediction = pd.read_csv('../data/test_s1/submission_s1_sample_xgb.csv')
+# prediction = prediction[prediction['exam_id'].isin(['nsEwXu9k', 'Y1UQOByn', 'wzdFr0tP', 'S7V4hIkY', '3SJyhx2F', '3SG49MKN', '7lQGsPpC', 'Vdo50vyP'])]
+# del prediction['exam_id']
+# traindata = pd.merge(traindata, prediction, how='left', on=['student_id', 'course'])
+# testdata_two['pred'] = traindata['pred']
 ##########################
-
 
 # 第n+1次成绩的预测：
 oof_xgb, prediction_xgb = \

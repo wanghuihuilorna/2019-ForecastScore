@@ -241,30 +241,30 @@ if __name__ == '__main__':
     ####################################################测试#################################################################
 
     ####################################################xgb#################################################################
-    reuslt = []
-    for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
-        submission_s1 = get_submission_s1('submission_s1', 'course' + i)
-
-        exam_score = get_exam_score('exam_score', 'course' + i)
-
-        train_y = exam_score['score']
-
-        del exam_score['score']
-
-        columns = list(set(list(exam_score.columns) + list(submission_s1.columns)))
-        columns.sort()
-
-        submission_s1 = submission_s1.reindex(columns=columns).fillna(0)
-        exam_score = exam_score.reindex(columns=columns).fillna(0)
-
-        predictions = xgb_model(model_name='xgb_model' + i + '.pkl', train_X=exam_score, train_y=train_y,
-                                test_X=submission_s1, test_y=None)
-
-        reuslt.extend(predictions.tolist())
-
-    submit = load_data().get_test_s1('submission_s1', 'pd')
-    submit['pred'] = reuslt
-    submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_xgb.csv', index=None, encoding='utf-8')
+    # reuslt = []
+    # for i in ['1', '2', '3', '4', '5', '6', '7', '8']:
+    #     submission_s1 = get_submission_s1('submission_s1', 'course' + i)
+    #
+    #     exam_score = get_exam_score('exam_score', 'course' + i)
+    #
+    #     train_y = exam_score['score']
+    #
+    #     del exam_score['score']
+    #
+    #     columns = list(set(list(exam_score.columns) + list(submission_s1.columns)))
+    #     columns.sort()
+    #
+    #     submission_s1 = submission_s1.reindex(columns=columns).fillna(0)
+    #     exam_score = exam_score.reindex(columns=columns).fillna(0)
+    #
+    #     predictions = xgb_model(model_name='xgb_model' + i + '.pkl', train_X=exam_score, train_y=train_y,
+    #                             test_X=submission_s1, test_y=None)
+    #
+    #     reuslt.extend(predictions.tolist())
+    #
+    # submit = load_data().get_test_s1('submission_s1', 'pd')
+    # submit['pred'] = reuslt
+    # submit.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_xgb.csv', index=None, encoding='utf-8')
 
     ####################################################lgb#################################################################
     # reuslt = []
@@ -338,10 +338,10 @@ if __name__ == '__main__':
 
     ########################################################mean-median-xgb#################################################################
     data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
-    data2 = load_data().get_test_s1('submission_s1_sample_mean_median', 'pd')
+    data2 = load_data().get_test_s1('submission_s1_sample_baseline', 'pd')
 
     data1['pred'] = (data1['pred'] + data2['pred']) / 2
-    data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_mean_median_xgb.csv', index=None,
+    data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_baseline_xgb.csv', index=None,
                  encoding='utf-8')
 
     print(time.clock() - start)
