@@ -172,7 +172,7 @@ if __name__ == '__main__':
     #         result = pd.concat([result, tmp], axis=0)
     #
     # result.sort_values(by='student_id', inplace=True)
-    # result.to_csv('predictions.csv', encoding='utf_8', index=None)
+    # result.to_csv('result.csv', encoding='utf_8', index=None)
 
     #############################################################lgb测试#################################################################
     # # 获取course
@@ -337,11 +337,21 @@ if __name__ == '__main__':
     #               encoding='utf-8')
 
     ########################################################mean-median-xgb#################################################################
-    data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
+    # data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
+    # data2 = load_data().get_test_s1('submission_s1_sample_baseline', 'pd')
+    #
+    # data1['pred'] = (data1['pred'] * 0.5 + data2['pred'] * 0.5)
+    # data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_baseline_xgb.csv', index=None,
+    #              encoding='utf-8')
+    #
+    # print(time.clock() - start)
+
+    ########################################################stack-and-baseline#################################################################
+    data1 = load_data().get_test_s1('submission_s1_sample_stack', 'pd')
     data2 = load_data().get_test_s1('submission_s1_sample_baseline', 'pd')
 
-    data1['pred'] = (data1['pred'] + data2['pred']) / 2
-    data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_baseline_xgb.csv', index=None,
+    data1['pred'] = (data1['pred'] * 0.3 + data2['pred'] * 0.7)
+    data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_baseline_stack.csv', index=None,
                  encoding='utf-8')
 
     print(time.clock() - start)
