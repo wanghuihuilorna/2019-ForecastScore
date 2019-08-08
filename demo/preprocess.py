@@ -347,11 +347,11 @@ if __name__ == '__main__':
     # print(time.clock() - start)
 
     ########################################################stack-and-baseline#################################################################
-    data1 = load_data().get_test_s1('submission_s1_sample_stack', 'pd')
-    data2 = load_data().get_test_s1('submission_s1_sample_baseline', 'pd')
+    data1 = load_data().get_test_s1('submission_s1_sample_xgb', 'pd')
+    data2 = load_data().get_test_s1('submission_s1_sample_baseline_1', 'pd')
 
-    data1['pred'] = (data1['pred'] * 0.3 + data2['pred'] * 0.7)
-    data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_baseline_stack.csv', index=None,
+    data1['pred'] = (data1['pred'] * 0.1 + data2['pred'] * 0.9)
+    data1.to_csv(load_data().get_project_path() + '/data/test_s1/submission_s1_sample_baseline_1_xgb.csv', index=None,
                  encoding='utf-8')
 
     print(time.clock() - start)

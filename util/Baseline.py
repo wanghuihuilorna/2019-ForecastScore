@@ -21,9 +21,17 @@ def create_feature(data):
     for i, row in tqdm(data.iterrows()):
         m = [int(i) for i in row['history_score'] if int(i) >= 50]
         # 平均数/中位数/标准差/最大值/最小值/众数/极差/变异系数/  最后两个值的均值/标准差 np.mean(m[-2:]), np.std(m[-2:])
+        # 0.89
+        # feats.append([np.mean(m), np.median(m), np.std(m), np.max(m), np.min(m), pd.Series(data=m).mode().max(),
+        #               np.ptp(m), np.std(m) / np.mean(m), np.mean(m[-2:]), np.std(m[-2:])
+        #               ])
+
         feats.append([np.mean(m), np.median(m), np.std(m), np.max(m), np.min(m), pd.Series(data=m).mode().max(),
-                      np.ptp(m), np.std(m)/np.mean(m), np.mean(m[-2:]), np.std(m[-2:])
+                      np.ptp(m), np.std(m) / np.mean(m), m[-2], m[-1]
                       ])
+
+        # feats.append([np.mean(m), np.median(m), np.std(m), np.max(m), np.min(m), np.mean(m[-2:]), np.std(m[-2:])
+        #               ])
 
     feats = pd.DataFrame(feats)
     feats.columns = ['feats{}'.format(i) for i in range(feats.shape[1])]
@@ -33,7 +41,7 @@ def create_feature(data):
 def xgb_model(new_train, y, new_test, lr, N):
     """定义模型"""
     xgb_params = {'booster': 'gbtree',
-                  'eta': lr, 'max_depth': 10, 'subsample': 0.8, 'colsample_bytree': 0.8,
+                  'eta': lr, 'max_depth': 3, 'subsample': 0.8, 'colsample_bytree': 0.8,
                   'objective': 'reg:linear', 'eval_metric': 'rmse',
                   'silent': True,
                   }
@@ -57,7 +65,7 @@ def xgb_model(new_train, y, new_test, lr, N):
 
 # ====================读入数据==========================================================
 train_path = '../data/train_s1/'
-test_path = '../data/test_s1/'
+test_path = '../data/train_s1/'
 all_knowledge = pd.read_csv(train_path + 'all_knowledge.csv')
 course1_exams = pd.read_csv(train_path + 'course1_exams.csv')
 course2_exams = pd.read_csv(train_path + 'course2_exams.csv')
@@ -87,6 +95,14 @@ for stu in tqdm(test_id):
 traindata = pd.DataFrame(traindata, columns=['student_id', 'course', 'score', 'history_score'])
 print('训练集构造完毕！')
 
+# 方式一
+# from util import tool
+# traindata = tool.label_encoding(traindata, ['course'])
+# 方式二
+course_label = dict(zip(['course1', 'course2', 'course3', 'course4', 'course5', 'course6', 'course7', 'course8'],
+                        [1, 2, 3, 4, 5, 6, 7, 8]))
+traindata['course'] = traindata['course'].map(lambda x: course_label[x])
+
 '''
 构造测试集：因为要预测未来两次的成绩，所以预测第n+2次时，是用到第n+1次的结果的
 '''
@@ -112,9 +128,9 @@ testdata_one = testdata_one.merge(student, how='left', on='student_id')
 # 第n次成绩的预测：
 traindata = traindata[traindata.score >= 50].reset_index(drop=True)
 oof_xgb, prediction_xgb = \
-    xgb_model(np.array(traindata.drop(['student_id', 'course', 'score', 'history_score'], axis=1)),
+    xgb_model(np.array(traindata.drop(['score', 'history_score'], axis=1)),
               traindata['score'].values,
-              np.array(testdata_one.drop(['student_id', 'course', 'score', 'history_score'], axis=1)),
+              np.array(testdata_one.drop(['score', 'history_score'], axis=1)),
               0.01, 5)
 testdata_one['score'] = prediction_xgb
 
@@ -138,9 +154,9 @@ testdata_two = testdata_two.merge(student, how='left', on='student_id')
 
 # 第n+1次成绩的预测：
 oof_xgb, prediction_xgb = \
-    xgb_model(np.array(traindata.drop(['student_id', 'course', 'score', 'history_score'], axis=1)),
+    xgb_model(np.array(traindata.drop(['score', 'history_score'], axis=1)),
               traindata['score'].values,
-              np.array(testdata_two.drop(['student_id', 'course', 'score', 'history_score'], axis=1)),
+              np.array(testdata_two.drop(['score', 'history_score'], axis=1)),
               0.01, 5)
 testdata_two['score'] = prediction_xgb
 # ====================================================================================
@@ -164,6 +180,13 @@ print(submission_s1['one'].value_counts())
 
 testdata_one['one'] = 1  # 第一次的预测结果标记为1,即倒数第三次的考试成绩
 testdata_two['one'] = 2  # 第二次的预测结果标记为2，即倒数第二次的考试成绩
+
+# 方式二
+course_label = dict(zip(
+    [1, 2, 3, 4, 5, 6, 7, 8], ['course1', 'course2', 'course3', 'course4', 'course5', 'course6', 'course7', 'course8']
+))
+testdata_one['course'] = testdata_one['course'].map(lambda x: course_label[x])
+testdata_two['course'] = testdata_two['course'].map(lambda x: course_label[x])
 
 result = submission_s1.copy()
 result = result.merge(pd.concat([testdata_one, testdata_two], axis=0),

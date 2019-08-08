@@ -148,4 +148,4 @@ result = result.merge(pd.concat([testdata_one, testdata_two], axis=0),
 
 result = result[['student_id', 'course', 'exam_id', 'score']]
 result.columns = ['student_id', 'course', 'exam_id', 'pred']
-result.to_csv('../data/test_s1/result.csv', index=None, encoding='utf8')
+result.to_csv('../data/test_s1/submission_s1_sample_baseline.csv', index=None, encoding='utf8')
