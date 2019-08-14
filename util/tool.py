@@ -431,6 +431,137 @@ def get_submission_s1(filename, course_id: str, tag='pd', save=True):
 
     return submission_s1
 
+
+def lgb_model(X_train, y, df_test, columns, **params):
+    """
+    lgb 模型
+    :param new_train:
+    :param y:
+    :param new_test:
+    :param columns:
+    :param params:
+    :return:
+    """
+    from lightgbm import LGBMRegressor
+    from sklearn.model_selection import StratifiedKFold
+    from sklearn.metrics import mean_squared_error
+
+    y = np.floor(np.expm1(y))
+    print(y)
+
+    test_y = np.zeros(len(df_test))
+    random_seed = 2019
+    cv_model = []
+    cv_score = []
+    skf = StratifiedKFold(n_splits=5, random_state=random_seed, shuffle=True)
+    for index, (train_index, test_index) in enumerate(skf.split(X_train, y)):
+        print('split: ', index)
+        train_x, val_x, train_y, val_y = X_train.iloc[train_index], X_train.iloc[test_index], y.iloc[train_index], \
+                                         y.iloc[test_index]
+        lgb_params = {
+            'boosting_type': 'gbdt',
+            'objective': 'regression',
+            'n_estimators': 10000,
+            # 'metric': 'mae',
+            'learning_rate': 0.01,
+            'min_child_samples': 46,
+            'min_child_weight': 0.01,
+            'subsample_freq': 1,
+            'num_leaves': 40,
+            'max_depth': 7,
+            'subsample': 0.42,
+            'colsample_bytree': 0.48,
+            'reg_alpha': 0.15,
+            'reg_lambda': 5,
+            'verbose': -1,
+            'seed': 4590
+        }
+        lgb = LGBMRegressor(**lgb_params)
+
+        lgb.fit(
+            train_x,
+            train_y,
+            eval_set=[(train_x, train_y), (val_x, val_y)],
+            # eval_names=['train', 'val'],
+            eval_metric='rmse',
+            # eval_metric = evaluate_macroF1_lgb,
+            early_stopping_rounds=100,
+            verbose=True,
+        )
+        cv_model.append(lgb)
+        lgb.n_estimators = lgb.best_iteration_
+        val_y_pred = lgb.predict(val_x)
+        cv_score.append(np.sqrt(mean_squared_error(val_y, val_y_pred)))
+        test_y += lgb.predict(df_test[columns]) / 5
+    print("CV score: ", np.mean(cv_score))
+
+    return test_y
+
+
+def xgb_model(X_train, y, df_test, columns, **params):
+    """
+    xgb 模型
+    :param new_train:
+    :param y:
+    :param new_test:
+    :param columns:
+    :param params:
+    :return:
+    """
+    from xgboost import XGBRegressor
+    from sklearn.model_selection import StratifiedKFold
+    from sklearn.metrics import mean_squared_error
+
+    y = np.floor(np.expm1(y))
+
+    test_y = np.zeros(len(df_test))
+    random_seed = 2019
+    cv_model = []
+    cv_score = []
+    skf = StratifiedKFold(n_splits=3, random_state=random_seed, shuffle=True)
+    for index, (train_index, test_index) in enumerate(skf.split(X_train, y)):
+        print('split: ', index)
+        train_x, val_x, train_y, val_y = X_train.iloc[train_index], X_train.iloc[test_index], y.iloc[train_index], \
+                                         y.iloc[test_index]
+        xgb_params = {
+            'boosting_type': 'gbdt',
+            'objective': 'reg:linear',
+            'n_estimators': 10000,
+            # 'metric': 'mae',
+            'learning_rate': 0.01,
+            'min_child_samples': 46,
+            'min_child_weight': 0.01,
+            'subsample_freq': 1,
+            'num_leaves': 40,
+            'max_depth': 7,
+            'subsample': 0.42,
+            'colsample_bytree': 0.48,
+            'reg_alpha': 0.15,
+            'reg_lambda': 5,
+            'verbose': -1,
+            'seed': 4590
+        }
+        xgb = XGBRegressor(**xgb_params)
+
+        xgb.fit(
+            train_x,
+            train_y,
+            eval_set=[(train_x, train_y), (val_x, val_y)],
+            # eval_names=['train', 'val'],
+            eval_metric='rmse',
+            # eval_metric = evaluate_macroF1_lgb,
+            early_stopping_rounds=100,
+            verbose=True,
+        )
+        cv_model.append(xgb)
+        xgb.n_estimators = xgb.best_iteration
+        val_y_pred = xgb.predict(val_x)
+        cv_score.append(np.sqrt(mean_squared_error(val_y, val_y_pred)))
+        test_y += xgb.predict(df_test[columns]) / 5
+    print("CV score: ", np.mean(cv_score))
+
+    return test_y
+
 ######################################################## v1.0 ########################################################
 # def merge_all_knowledge(df, course_type=None):
 #     """
